@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: Quiz & Coding Challenge App API
+  description: API documentation for the Online Programming Assessment and Quiz System.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local development server
+paths:
+  /register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                gender:
+                  type: string
+      responses:
+        '201':
+          description: User created successfully
+        '400':
+          description: Fields missing or user already exists
+
+  /login:
+    post:
+      summary: Log in to obtain a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      role:
+                        type: string
+        '401':
+          description: Invalid credentials
+
+  /profile:
+    get:
+      summary: Get current authenticated user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+        '401':
+          description: Unauthorized/missing token
+
+  /subjects:
+    get:
+      summary: List all active subjects
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of subjects
+    post:
+      summary: Create a new subject (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Subject created successfully
+        '403':
+          description: Forbidden - Admin access required
+
+  /subjects/{subject_id}:
+    delete:
+      summary: Delete a subject and all its related chapters/quizzes (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: subject_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Subject deleted successfully
+        '403':
+          description: Forbidden
+
+  /code/run:
+    post:
+      summary: Run programming challenge solution inside the Piston sandbox
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - language
+              properties:
+                code:
+                  type: string
+                language:
+                  type: string
+                  description: Identifier supported by Piston (e.g., python, javascript, cpp)
+      responses:
+        '200':
+          description: Execution results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  output:
+                    type: string
+                  execution_time:
+                    type: number
+                  memory:
+                    type: number
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

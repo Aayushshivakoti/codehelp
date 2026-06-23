@@ -1,0 +1,60 @@
+version: '3.8'
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Piston Code Execution Engine
+# Docs: https://github.com/engineer-man/piston
+#
+# QUICK SETUP (run once):
+#   1. Start the container:        docker compose up -d piston
+#   2. Install language runtimes:  docker compose run --rm piston-install
+#   3. Verify it's running:        curl http://localhost:2000/api/v2/runtimes
+#
+# The backend reads PISTON_URL from backend/.env  → http://localhost:2000/api/v2/execute
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # Main Piston engine (sandboxed code runner)
+  piston:
+    image: ghcr.io/engineer-man/piston:latest
+    container_name: quiz_app_piston
+    ports:
+      - "2000:2000"
+    restart: unless-stopped
+    privileged: true          # Required for cgroup-based sandboxing
+    volumes:
+      - piston_packages:/piston/packages
+
+  # One-shot helper: install language runtimes into the shared volume.
+  # Run with:  docker compose run --rm piston-install
+  piston-install:
+    image: alpine/curl:latest
+    container_name: quiz_app_piston_install
+    depends_on:
+      - piston
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        BASE=http://piston:2000/api/v2
+        echo "Waiting for Piston to be ready..."
+        until curl -sf $BASE/runtimes > /dev/null; do sleep 2; done
+        echo "Installing Python..."
+        curl -sf -X POST $BASE/packages -H "Content-Type: application/json" -d '{"language":"python","version":"3.10.0"}' | head -c 200
+        echo ""
+        echo "Installing JavaScript (Node)..."
+        curl -sf -X POST $BASE/packages -H "Content-Type: application/json" -d '{"language":"javascript","version":"18.15.0"}' | head -c 200
+        echo ""
+        echo "Installing C++ (g++)..."
+        curl -sf -X POST $BASE/packages -H "Content-Type: application/json" -d '{"language":"c++","version":"10.2.0"}' | head -c 200
+        echo ""
+        echo "Installing C..."
+        curl -sf -X POST $BASE/packages -H "Content-Type: application/json" -d '{"language":"c","version":"10.2.0"}' | head -c 200
+        echo ""
+        echo "Installing Java..."
+        curl -sf -X POST $BASE/packages -H "Content-Type: application/json" -d '{"language":"java","version":"15.0.2"}' | head -c 200
+        echo ""
+        echo "Done! Verify with: curl http://localhost:2000/api/v2/runtimes"
+
+volumes:
+  piston_packages:
+    driver: local
